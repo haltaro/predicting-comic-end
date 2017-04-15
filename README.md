@@ -1,1 +1,1 @@
-# predicting-comic-end
+# predicting-comic-endThis is the program to predict the end of comic in [weekly shonen jump](https://www.shonenjump.com).## LicenseMIT
