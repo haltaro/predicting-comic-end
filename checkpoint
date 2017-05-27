@@ -1,2 +1,2 @@
-model_checkpoint_path: "prediction_model"
-all_model_checkpoint_paths: "prediction_model"
+model_checkpoint_path: "model4_thesh10"
+all_model_checkpoint_paths: "model4_thesh10"

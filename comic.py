@@ -1,21 +1,18 @@
 import json
-import numpy as np
-import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
 
-sns.set(style='ticks')
-
-import matplotlib
 from matplotlib.font_manager import FontProperties
 font_path = '/usr/share/fonts/truetype/takao-gothic/TakaoPGothic.ttf'
 font_prop = FontProperties(fname=font_path)
+
+sns.set(style='ticks')
 
 
 class ComicAnalyzer():
     """漫画雑誌の目次情報を読みだして，管理するクラスです．"""
 
-    def __init__(self, data_path='data/wj-api.json', min_week=7, short_week=10):
+    def __init__(self, data_path='data/wj-api.json', min_week=7,
+                 short_week=10):
         """
         初期化時に，data_pathにある.jsonファイルから目次情報を抽出します．
         - self.data: 全目次情報を保持するリスト型
@@ -33,9 +30,11 @@ class ComicAnalyzer():
 
         self.data = self.read_data(data_path)
         self.all_titles = self.collect_all_titles()
-        self.serialized_titles = self.drop_short_titles(self.all_titles, min_week)
+        self.serialized_titles = self.drop_short_titles(
+            self.all_titles, min_week)
         self.last_year = self.find_last_year(self.serialized_titles[-100:])
-        self.last_no = self.find_last_no(self.serialized_titles[-100:], self.last_year)
+        self.last_no = self.find_last_no(self.serialized_titles[-100:],
+                                         self.last_year)
         self.end_titles = self.drop_continued_titles(
             self.serialized_titles, self.last_year, self.last_no)
         self.short_end_titles = self.drop_long_titles(
@@ -44,7 +43,8 @@ class ComicAnalyzer():
             self.end_titles, short_week + 1)
 
     def read_data(self, data_path):
-        """ data_pathにあるjsonファイルを読み出して，全ての目次情報をまとめたリストを返します． """
+        """ data_pathにあるjsonファイルを読み出して，
+            全ての目次情報をまとめたリストを返します． """
         with open(data_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return data
