@@ -97,3 +97,220 @@ class ComicAnalyzer():
     def search_title(self, key, titles):
         """ titlesのうち，keyを含む作品名のリストを返します． """
         return [title for title in titles if key in title]
+
+
+class ComicNet():
+    """ マンガ作品が短命か否かを識別する多層パーセプトロンを管理するクラスです．  
+    :param thresh_week：短命作品とそれ以外を分けるしきい値．
+    :param n_x：多層パーセプトロンに入力する掲載週の数．入力層のノード数．
+    """
+    def __init__(self, thresh_week=20, n_x=7):
+        self.n_x = n_x
+        self.thresh_week = thresh_week        
+    
+    def get_x(self, analyzer, title):
+        """指定された作品の指定週までの正規化掲載順を取得する関数です．"""
+        worsts = np.array(analyzer.extract_item(title)[:self.n_x])
+        bests = np.array(analyzer.extract_item(title, 'best')[:self.n_x])
+        bests_normalized = bests / (worsts + bests - 1)
+        color = sum(analyzer.extract_item(title, 'color')[:self.n_x]
+                    ) /self.n_x
+        return np.append(bests_normalized, color)
+
+    def get_y(self, analyzer, title, thresh_week):
+        """指定された作品が，短命作品か否かを取得する関数です．"""
+        return int(len(analyzer.extract_item(title)) <=  thresh_week)
+
+    def get_xs_ys(self, analyzer, titles, thresh_week):
+        """指定された作品群の特徴量とラベルとタイトルを返す関数です．
+        　　y==0とy==1のデータ数を揃えて返します．
+        """
+        xs = np.array([self.get_x(analyzer, title) for title in titles])
+        ys = np.array([[self.get_y(analyzer, title, thresh_week)] 
+                       for title in titles])
+        
+        # ys==0とys==1のデータ数を揃えます．
+        idx_ps = np.where(ys.reshape((-1)) == 1)[0]
+        idx_ng = np.where(ys.reshape((-1)) == 0)[0]
+        len_data = min(len(idx_ps), len(idx_ng))
+        x_ps = xs[idx_ps[-len_data:]]
+        x_ng = xs[idx_ng[-len_data:]]
+        y_ps = ys[idx_ps[-len_data:]]
+        y_ng = ys[idx_ng[-len_data:]]
+        t_ps = [titles[ii] for ii in idx_ps[-len_data:]]
+        t_ng = [titles[ii] for ii in idx_ng[-len_data:]]
+        
+        return x_ps, x_ng, y_ps, y_ng, t_ps, t_ng
+        
+    def augment_x(self, x, n_aug):
+        """指定された数のxデータを人為的に生成する関数です．"""
+        if n_aug:
+            x_pair = np.array(
+                [[x[idx] for idx in 
+                  np.random.choice(range(len(x)), 2, replace=False)]
+                 for _ in range(n_aug)])
+            weights = np.random.rand(n_aug, 1, self.n_x + 1)
+            weights = np.concatenate((weights, 1 - weights), axis=1)
+            x_aug = (x_pair * weights).sum(axis=1)
+            
+            return np.concatenate((x, x_aug), axis=0)
+        else:
+            return x
+        
+    def augment_y(self, y, n_aug):
+        """指定された数のyデータを人為的に生成する関数です．"""
+        if n_aug:
+            y_aug = np.ones((n_aug, 1)) if y[0, 0] \
+                else np.zeros((n_aug, 1))
+            return np.concatenate((y, y_aug), axis=0)
+        else:
+            return y
+        
+    def configure_dataset(self, analyzer, n_drop=0, n_aug=0):
+        """データセットを設定する関数です．
+        :param analyzer: ComicAnalyzerクラスのインスタンス
+        :param n_drop: trainingデータから除外する古いデータの数
+        :param n_aug: trainingデータに追加するaugmentedデータの数
+        """
+        x_ps, x_ng, y_ps, y_ng, t_ps, t_ng = self.get_xs_ys(
+            analyzer, analyzer.end_titles, self.thresh_week)
+        self.x_test = np.concatenate((x_ps[-50:], x_ng[-50:]), axis=0)
+        self.y_test = np.concatenate((y_ps[-50:], y_ng[-50:]), axis=0)
+        self.titles_test = t_ps[-50:] + t_ng[-50:]
+        self.x_val = np.concatenate((x_ps[-100 : -50], 
+                                     x_ng[-100 : -50]), axis=0)
+        self.y_val = np.concatenate((y_ps[-100 : -50], 
+                                     y_ng[-100 : -50]), axis=0)
+        self.x_tra = np.concatenate(
+            (self.augment_x(x_ps[n_drop//2 : -100], n_aug//2), 
+             self.augment_x(x_ng[n_drop//2 : -100], n_aug//2)), axis=0)
+        self.y_tra = np.concatenate(
+            (self.augment_y(y_ps[n_drop//2 : -100], n_aug//2), 
+             self.augment_y(y_ng[n_drop//2 : -100], n_aug//2)), axis=0)
+    
+    def build_graph(self, r=0.001, n_h=7, stddev=0.01):
+        """多層パーセプトロンを構築する関数です．
+        :param r: 学習率
+        :param n_h: 隠れ層のノード数
+        :param stddev: 変数の初期分布の標準偏差
+        """
+        tf.reset_default_graph()
+        
+        # 入力層およびターゲット
+        n_y = self.y_test.shape[1]
+        self.x = tf.placeholder(tf.float32, [None, self.n_x + 1], name='x')
+        self.y = tf.placeholder(tf.float32, [None, n_y], name='y')
+        
+        # 隠れ層（１層目）
+        self.w_h_1 = tf.Variable(
+            tf.truncated_normal((self.n_x + 1, n_h), stddev=stddev))
+        self.b_h_1 = tf.Variable(tf.zeros(n_h))
+        self.logits = tf.add(tf.matmul(self.x, self.w_h_1), self.b_h_1)
+        self.logits = tf.nn.relu(self.logits)
+        
+        # 隠れ層（２層目）
+        self.w_h_2 = tf.Variable(
+            tf.truncated_normal((n_h, n_h), stddev=stddev))
+        self.b_h_2 = tf.Variable(tf.zeros(n_h))
+        self.logits = tf.add(tf.matmul(self.logits, self.w_h_2), self.b_h_2)
+        self.logits = tf.nn.relu(self.logits)
+        
+        # 出力層
+        self.w_y = tf.Variable(
+            tf.truncated_normal((n_h, n_y), stddev=stddev))
+        self.b_y = tf.Variable(tf.zeros(n_y))
+        self.logits = tf.add(tf.matmul(self.logits, self.w_y), self.b_y)
+        tf.summary.histogram('logits', self.logits)
+        
+        # 損失関数
+        self.loss = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=self.logits, labels=self.y))
+        tf.summary.scalar('loss', self.loss)
+        
+        # 最適化
+        self.optimizer = tf.train.AdamOptimizer(r).minimize(self.loss)
+        self.output = tf.nn.sigmoid(self.logits, name='output')
+        correct_prediction = tf.equal(self.y, tf.round(self.output))
+        self.acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32),
+            name='acc')
+        tf.summary.histogram('output', self.output)
+        tf.summary.scalar('acc', self.acc)
+        
+        self.merged = tf.summary.merge_all()
+            
+        
+    def train(self, epoch=2000, print_loss=False, save_log=False, 
+              log_dir='./logs/1', log_name='', save_model=False,
+              model_name='prediction_model'):
+        """多層パーセプトロンを学習させ，ログや学習済みモデルを保存する関数です．
+        :param epoch: エポック数
+        :pram print_loss: 損失関数の履歴を出力するか否か
+        :param save_log: ログを保存するか否か
+        :param log_dir: ログの保存ディレクトリ
+        :param log_name: ログの保存名
+        :param save_model: 学習済みモデルを保存するか否か
+        :param model_name: 学習済みモデルの保存名
+        """
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer()) # 変数の初期化
+            
+            # ログ保存用の設定
+            log_tra = log_dir + '/tra/' + log_name 
+            writer_tra = tf.summary.FileWriter(log_tra)
+            log_val = log_dir + '/val/' + log_name
+            writer_val = tf.summary.FileWriter(log_val)        
+
+            for e in range(epoch):
+                feed_dict = {self.x: self.x_tra, self.y: self.y_tra}
+                _, loss_tra, acc_tra, mer_tra = sess.run(
+                        (self.optimizer, self.loss, self.acc, self.merged), 
+                        feed_dict=feed_dict)
+                
+                # validation
+                feed_dict = {self.x: self.x_val, self.y: self.y_val}
+                loss_val, acc_val, mer_val = sess.run(
+                    (self.loss, self.acc, self.merged),
+                    feed_dict=feed_dict)
+                
+                # ログの保存
+                if save_log:
+                    writer_tra.add_summary(mer_tra, e)
+                    writer_val.add_summary(mer_val, e)
+                
+                # 損失関数の出力
+                if print_loss and e % 500 == 0:
+                    print('# epoch {}: loss_tra = {}, loss_val = {}'.
+                          format(e, str(loss_tra), str(loss_val)))
+            
+            # モデルの保存
+            if save_model:
+                saver = tf.train.Saver()
+                _ = saver.save(sess, './models/' + model_name)
+            
+    def test(self, model_name='prediction_model'):
+        """指定されたモデルを読み込み，テストする関数です．
+        :param model_name: 読み込むモデルの名前
+        """
+        tf.reset_default_graph()
+        loaded_graph = tf.Graph()
+        
+        with tf.Session(graph=loaded_graph) as sess:
+            
+            # モデルの読み込み
+            loader = tf.train.import_meta_graph(
+                './models/{}.meta'.format(model_name))
+            loader.restore(sess, './models/' + model_name)
+            
+            x_loaded = loaded_graph.get_tensor_by_name('x:0')
+            y_loaded = loaded_graph.get_tensor_by_name('y:0')
+            
+            loss_loaded = loaded_graph.get_tensor_by_name('loss:0')
+            acc_loaded = loaded_graph.get_tensor_by_name('acc:0')
+            output_loaded = loaded_graph.get_tensor_by_name('output:0')
+        
+            # test
+            feed_dict = {x_loaded: self.x_test, y_loaded: self.y_test}
+            loss_test, acc_test, output_test = sess.run(
+                (loss_loaded, acc_loaded, output_loaded), feed_dict=feed_dict)
+            return acc_test, output_test
