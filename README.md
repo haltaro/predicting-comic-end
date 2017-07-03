@@ -46,10 +46,10 @@ jupyter notebook 0_obtain_comic_data_j.ipynb
 
 ## Analysis
 
-`ComicAnalyzer` will help you to analyze the order of comic titles.
+`ComicAnalyzer` helps you to analyze the order of comic titles.
 
 ```python
-wj = ComicAnalyzer()
+wj = comic.ComicAnalyzer()
 ```
 
 For example, you can plot the order of short titles in the first 10 weeks, where short title is a comic title which ends within 20 weeks.
@@ -68,7 +68,7 @@ plt.show()
 
 ![short.png](fig/short.png)
 
-Pair plot will help you to visualize the relationship between short titles and long titles.
+Pair plot helps you to visualize the relationship between short titles and long titles.
 
 ```python
 import pandas as pd
@@ -96,6 +96,18 @@ jupyter notebook 1_analyze_comic_data_j.ipynb
 
 ## Train and test (neural network) 
 
+`ComicNet` helps you to build, train, and test a neural network as shown below.
+
+![model.png](fig/model.png)
+
+```python
+wjnet = comic.ComicNet()
+wjnet.configure_dataset(wj) # Configure dataset
+wjnet.build_graph() # Build a neural network
+wjnet.train() # Train a neural network
+wjnet.test() # Test a neural network
+```
+
 For detail, please refer to the following jupyter notebook:
 
 ```bash
@@ -104,6 +116,7 @@ jupyter notebook 2_train_and_test_neural_network_j.ipynb
 ```
 
 ![acc.png](fig/acc.png)
+
 
 
 ## License
