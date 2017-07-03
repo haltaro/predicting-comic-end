@@ -28,31 +28,75 @@ import comic
 
 ## Obtain data 
 
-Please refer to the jupyter notebook below:
+
+We obtain the indexes of the magazine for about 46 years from [Media Art Database](https://mediaarts-db.bunka.go.jp/?utf8=%E2%9C%93&locale=en).
+We save `wj-api.json` to `./data` directry.
+
+```python
+magazines = comic.search_magazine()
+comic.save_data(magazines)
+```
+
+For detail, please refer to the following jupyter notebook:
 
 ```bash
 jupyter notebook 0_obtain_comic_data_j.ipynb
 
 ```
 
-English version of the notebook is now in preparation...
-
 ## Analysis
 
-Please refer to the jupyter notebook below:
+`ComicAnalyzer` will help you to analyze the order of comic titles.
+
+```python
+wj = ComicAnalyzer()
+```
+
+For example, you can plot the order of short titles in the first 10 weeks, where short title is a comic title which ends within 20 weeks.
+
+```python
+import matplotlib.pyplot as plt
+
+for title in wj.short_end_titles[-10:]:
+    plt.plot(wj.extract_item(title)[:10], label=title[:6])
+plt.xlabel('Week')
+plt.ylabel('Worst')
+plt.ylim(0,22)
+plt.legend()
+plt.show()
+```
+
+![short.png](fig/short.png)
+
+Pair plot will help you to visualize the relationship between short titles and long titles.
+
+```python
+import pandas as pd
+
+end_data = pd.DataFrame(
+    [[wj.extract_item(title)[1] + np.random.randn() * .3,
+      wj.extract_item(title)[2] + np.random.randn() * .3,
+      wj.extract_item(title)[3] + np.random.randn() * .3,
+      wj.extract_item(title)[4] + np.random.randn() * .3,
+      wj.extract_item(title)[5] + np.random.randn() * .3,
+      '短命作品' if title in wj.short_end_titles else '継続作品']
+     for title in wj.end_titles])
+plt.show()
+
+``` 
+
+![pairplot.png](fig/pairplot.png)
+
+For detail, please refer to the following jupyter notebook:
 
 ```bash
 jupyter notebook 1_analyze_comic_data_j.ipynb
 
 ```
 
-![pairplot.png](fig/pairplot.png)
-
-English version of the notebook is now in preparation...
-
 ## Train and test (neural network) 
 
-Please refer to the jupyter notebook below:
+For detail, please refer to the following jupyter notebook:
 
 ```bash
 jupyter notebook 2_train_and_test_neural_network_j.ipynb
@@ -60,8 +104,6 @@ jupyter notebook 2_train_and_test_neural_network_j.ipynb
 ```
 
 ![acc.png](fig/acc.png)
-
-English version of the notebook is now in preparation...
 
 
 ## License

@@ -1,13 +1,150 @@
 # -*- coding: utf-8 -*-
 
 import json
+import numpy as np
+import pandas as pd
 import seaborn as sns
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import urllib.request
+from time import sleep
 
 from matplotlib.font_manager import FontProperties
 font_path = '/usr/share/fonts/truetype/takao-gothic/TakaoPGothic.ttf'
 font_prop = FontProperties(fname=font_path)
 
 sns.set(style='ticks')
+
+
+def search_magazine(key='JUMPrgl', n_pages=25):
+    """
+    「ユニークID」「雑誌巻号ID」あるいは「雑誌コード」にkey含む雑誌を，
+    n_pages分取得する関数です．
+    """
+    
+    url = 'https://mediaarts-db.bunka.go.jp/mg/api/v1/results_magazines?id=' + \
+        key + '&page='
+    magazines = []
+    
+    for i in range(1, n_pages):
+        response = urllib.request.urlopen(url + str(i))
+        content = json.loads(response.read().decode('utf8'))
+        magazines.extend(content['results'])
+    return magazines
+
+
+def extract_data(content):
+    """
+    contentに含まれる目次情報を取得する関数です．
+    - year: 発行年
+    - no: 号数
+    - title: 作品名
+    - author: 著者
+    - color: カラーか否か
+    - pages: 掲載ページ数
+    - start_page: 作品のスタートページ
+    - best: 巻頭から数えた掲載順
+    - worst: 巻末から数えた掲載順
+    """
+    
+    # マンガ作品のみ抽出します．
+    comics = [comic for comic in content['contents'] 
+             if comic['category']=='マンガ作品'] 
+    data = []
+    year = int(content['basics']['date_indication'][:4])
+    
+    # 号数が記載されていない場合があるので，例外処理が必要です．
+    try:
+        no = int(content['basics']['number_indication'])
+    except ValueError:
+        no = content['basics']['number_indication']
+    
+    for comic in comics:
+        title= comic['work']
+        if not title:
+            continue
+            
+        # ページ数が記載されていない作品があるので，例外処理が必要です．
+        # 特に理由はないですが，無記載の作品は10ページとして処理を進めます．
+        try:
+            pages = int(comic['work_pages'])
+        except ValueError:
+            pages = 10
+
+        # 「いぬまるだしっ」等，1週に複数話掲載されている作品に対応するため
+        # data中にすでにtitleが含まれる場合は，新規datumとして登録せずに，
+        # 既存のdatumのページ数のみ加算します．
+        if len(data) > 0 and title in [datum['title'] for datum in data]:
+            data[[datum['title'] for datum in 
+                  data].index(title)]['pages'] += pages
+        else:
+            data.append({
+                'year': year,
+                'no': no,
+                'title': comic['work'],
+                'author': comic['author'],
+                'subtitle': comic['subtitle'],
+                'color': int('カラー' in comic['note']),
+                'pages': int(comic['work_pages']),
+                'start_pages': int(comic['start_page'])
+            })
+
+    # 企画物のミニマンガを除外するため，合計5ページ以下のdatumはリストから除外します．
+    filterd_data = [datum for datum in data if datum['pages'] > 5]
+    for n, datum in enumerate(filterd_data):
+        datum['best'] = n + 1
+        datum['worst'] = len(filterd_data) - n
+        
+    return filterd_data
+
+
+def save_data(magazines, offset=0, file_name='data/wj-api.json'):
+    """
+    magazinesに含まれる全てのmagazineについて，先頭からoffset以降の巻号の
+    目次情報を取得し，file_nameに保存する関数です．
+    """
+    
+    url = 'https://mediaarts-db.bunka.go.jp/mg/api/v1/magazine?id='
+    
+    #　ファイル先頭行
+    if offset == 0:
+        with open(file_name, 'w') as f:
+            f.write('[\n')
+        
+    with open(file_name, 'a') as f:
+        
+        # magazines中のmagazine毎にWeb APIを叩きます．
+        for m, magazine in enumerate(magazines[offset:]):
+            response = urllib.request.urlopen(url + str(magazine['id']),
+                                              timeout=30)
+            content = json.loads(response.read().decode('utf8'))
+            
+            # 前記の関数extract_data()で，必要な情報を抽出します．
+            comics = extract_data(content)
+            print('{0:4d}/{1}: Extracted data from {2}'.\
+                  format(m + offset, len(magazines), url + str(magazine['id'])))
+            
+            # comics中の各comicについて，file_nameに情報を保存します．
+            for n, comic in enumerate(comics):
+                
+                # ファイル先頭以外の，magazineの最初のcomicの場合は，
+                # まず',\n'を追記．
+                if m + offset > 0 and n == 0:
+                    f.write(',\n')
+                
+                json.dump(comic, f, ensure_ascii=False)
+                
+                # 最後のcomic以外は',\n'を追記．
+                if not n == len(comics) - 1:
+                    f.write(',\n')
+            print('{0:9}: Saved data to {1}'.format(' ', file_name))
+            
+            # サーバへの負荷を抑えるため，必ず一時停止します．
+            sleep(3)
+            
+    # ファイル最終行
+    with open(file_name, 'a') as f:
+        f.write(']')
 
 
 class ComicAnalyzer():
