@@ -1,4 +1,4 @@
-[Qiita記事（前編）](http://qiita.com/haltaro/items/c54fa1855767f1a1abd5) | [Qiita記事（後編）](http://qiita.com/haltaro/items/62d49875ed658ac8a93f) | [Back to haltaro](https://haltaro.github.io)
+[Qiita記事（前編）](http://qiita.com/haltaro/items/c54fa1855767f1a1abd5) | [Qiita記事（後編）](http://qiita.com/haltaro/items/62d49875ed658ac8a93f) | [haltaro](https://haltaro.github.io)
 
 # Introduction
 
@@ -116,7 +116,7 @@ jupyter notebook 2_train_and_test_neural_network_j.ipynb
 
 ![acc.png](fig/acc.png)
 
-
-
 # License
 MIT
+
+[Qiita記事（前編）](http://qiita.com/haltaro/items/c54fa1855767f1a1abd5) | [Qiita記事（後編）](http://qiita.com/haltaro/items/62d49875ed658ac8a93f) | [haltaro](https://haltaro.github.io)
