@@ -1,7 +1,6 @@
-# predicting-comic-end
-This repository includes python codes and jupyter notebooks to predict the end of comic serialized in [weekly shonen jump](https://www.shonenjump.com).
+[Qiita記事（前編）](http://qiita.com/haltaro/items/c54fa1855767f1a1abd5) | [Qiita記事（後編）](http://qiita.com/haltaro/items/62d49875ed658ac8a93f) | [haltaro](https://haltaro.github.io)
 
-## Introduction
+# Introduction
 
 [Weekly shonen jump](https://www.shonenjump.com) is one of the most popular *manga* magazine in Japan. 
 [Dragon Ball](https://en.wikipedia.org/wiki/Dragon_Ball), [Slum Dunk](https://en.wikipedia.org/wiki/Slam_Dunk_(manga)), [Naruto](https://en.wikipedia.org/wiki/Naruto), [Bleach](https://en.wikipedia.org/wiki/Bleach_(manga)), and so on, were serialized in this weekly magazine. 
@@ -13,7 +12,7 @@ Our goal is to predict the end of comic serialized in the magazine from the orde
 We obtain the indexes of the magazine for about 46 years from [Media Art Database](https://mediaarts-db.bunka.go.jp/?utf8=%E2%9C%93&locale=en).
 We build a neural network with tensorflow.
 
-## Environment
+# Environment
 
 ```
 conda env create -f env.yml
@@ -26,7 +25,7 @@ import comic
 ```
 
 
-## Obtain data 
+# Obtain data 
 
 
 We obtain the indexes of the magazine for about 46 years from [Media Art Database](https://mediaarts-db.bunka.go.jp/?utf8=%E2%9C%93&locale=en).
@@ -44,7 +43,7 @@ jupyter notebook 0_obtain_comic_data_j.ipynb
 
 ```
 
-## Analysis
+# Analysis
 
 `ComicAnalyzer` helps you to analyze the order of comic titles.
 
@@ -94,7 +93,7 @@ jupyter notebook 1_analyze_comic_data_j.ipynb
 
 ```
 
-## Train and test (neural network) 
+# Train and test (neural network) 
 
 `ComicNet` helps you to build, train, and test a neural network as shown below.
 
@@ -119,5 +118,5 @@ jupyter notebook 2_train_and_test_neural_network_j.ipynb
 
 
 
-## License
+# License
 MIT
