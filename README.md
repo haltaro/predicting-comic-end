@@ -25,7 +25,7 @@ import comic
 ```
 
 
-# Obtain data 
+# Obtaining data 
 
 
 We obtain the indexes of the magazine for about 46 years from [Media Art Database](https://mediaarts-db.bunka.go.jp/?utf8=%E2%9C%93&locale=en).
@@ -43,7 +43,7 @@ jupyter notebook 0_obtain_comic_data_j.ipynb
 
 ```
 
-# Analysis
+# Analyzing Data 
 
 `ComicAnalyzer` helps you to analyze the order of comic titles.
 
@@ -93,7 +93,7 @@ jupyter notebook 1_analyze_comic_data_j.ipynb
 
 ```
 
-# Train and test (neural network) 
+# Training and testing (neural network) 
 
 `ComicNet` helps you to build, train, and test a neural network as shown below.
 
